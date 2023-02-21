@@ -24,7 +24,7 @@ const Game = {
     this.turn = true;
     this.MOVES = [];
   },
-  undo(k) {
+  undo(k = 1) {
     let moves = this.MOVES.slice(0, this.MOVES.length - k);
     this.reset();
     this.sequence(...moves);

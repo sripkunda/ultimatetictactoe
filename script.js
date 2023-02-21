@@ -13,6 +13,8 @@ const GUIOptions = {
   offsetY: 20,
   colorLerpAmount: 0.2,
   gridColorDampening: 0.75,
+  buttonWidth: 100,
+  buttonPaddingY: 75,
 };
 
 const GUIState = {
@@ -23,14 +25,13 @@ const GUIState = {
   originY: 0,
   centerX: 0,
   centerY: 0,
+  mouseDown: false,
 };
 
-function setup() {
-  createCanvas(windowWidth, windowHeight);
-  // Generate win masks at runtime to increase speed
-  Game.SMALL_WIN_MASKS = generateWinMasks();
-  Game.BIG_WIN_MASKS = generateWinMasks(true);
-}
+const GUIElements = {
+  resetBtn: null,
+  undoBtn: null,
+};
 
 function hasSetBit(mask, k) {
   return mask & (1n << BigInt(k));
@@ -58,6 +59,24 @@ function gridLength(i) {
   );
 }
 
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+
+  // Generate win masks at runtime to increase speed
+  Game.SMALL_WIN_MASKS = generateWinMasks();
+  Game.BIG_WIN_MASKS = generateWinMasks(true);
+
+  GUIElements.resetBtn = createButton("🞭");
+  GUIElements.undoBtn = createButton("🡄");
+
+  GUIElements.resetBtn.mousePressed(() => {
+    Game.reset();
+  });
+  GUIElements.undoBtn.mousePressed(() => {
+    Game.undo();
+  });
+}
+
 function draw() {
   clear();
   background(GUIOptions.backgroundColor);
@@ -71,6 +90,19 @@ function draw() {
   GUIState.originY = GUIState.centerY + GUIOptions.offsetY;
   GUIState.end =
     (GUIOptions.padding + GUIOptions.boxLength) * 9 + GUIOptions.padding;
+
+  // Add buttons
+  GUIElements.resetBtn.position(
+    GUIState.originX + GUIState.end,
+    GUIState.originY + GUIOptions.buttonPaddingY
+  );
+  GUIElements.resetBtn.style("width", `${GUIOptions.buttonWidth}px`);
+
+  GUIElements.undoBtn.position(
+    GUIState.originX + GUIState.end,
+    GUIState.originY
+  );
+  GUIElements.undoBtn.style("width", `${GUIOptions.buttonWidth}px`);
 
   // Add text
   textFont("Georgia");
@@ -114,8 +146,17 @@ function draw() {
     }
   }
 
+  // Store current mouse position relative to board origin
+  const relMouseX = mouseX - GUIState.originX;
+  const relMouseY = mouseY - GUIState.originY;
+
   // Update square colors
   for (let i = 0; i < 81; i++) {
+    // Play the square if it is being clicked on
+    const dist_x = relMouseX - relativeSquarePosition(i % 9);
+    const dist_y = relMouseY - relativeSquarePosition(floor(i / 9));
+
+    // Update the color
     const j =
       Game.WINNER !== null
         ? Game.WINNER
@@ -128,10 +169,30 @@ function draw() {
     } else {
       GUIState.squareTargetColors[i] = GUIOptions.squareColor;
     }
+
     GUIState.squareColors[i] = GUIState.squareColors[i].map(
       (e, j) =>
         e + (GUIState.squareTargetColors[i][j] - e) * GUIOptions.colorLerpAmount
     );
+
+    if (
+      dist_x > 0 &&
+      dist_y > 0 &&
+      dist_x < GUIOptions.boxLength &&
+      dist_y < GUIOptions.boxLength
+    ) {
+      if (GUIState.mouseDown) Game.play(80 - i);
+      document.body.style.cursor = hasSetBit(Game.PLAY_SQUARES, 80 - i)
+        ? "pointer"
+        : "auto";
+    } else if (
+      relMouseX < 0 ||
+      relMouseY < 0 ||
+      relMouseX > GUIState.end ||
+      relMouseY > GUIState.end
+    ) {
+      document.body.style.cursor = "auto";
+    }
   }
 
   GUIState.gridColor = GUIState.gridColor.map(
@@ -143,45 +204,10 @@ function draw() {
   );
 }
 
-function getBoxAtMousePos() {
-  // Compute relative mouse position
-  const relMouseX = mouseX - GUIState.originX;
-  const relMouseY = mouseY - GUIState.originY;
-
-  // Find row and col
-  const col = floor(relMouseX / (GUIOptions.padding + GUIOptions.boxLength));
-  const row = floor(relMouseY / (GUIOptions.padding + GUIOptions.boxLength));
-
-  // Check if mouse is outside of the tic tac toe board
-  if (
-    row < 0 ||
-    col < 0 ||
-    row > 8 ||
-    col > 8 ||
-    relMouseX > GUIState.originX + GUIState.end ||
-    relMouseY > GUIState.originY + GUIState.end
-  )
-    return;
-
-  // Shift to compensate for extra padding between tic tac boards after a certain point
-  const shiftX = -(floor(col / 3) >= 1);
-  const shiftY = -(floor(row / 3) >= 1);
-  const currPosX = relativeSquarePosition(col + shiftX) + GUIOptions.boxLength;
-  const nextPosX = relativeSquarePosition(col + shiftX + 1);
-  const currPosY = relativeSquarePosition(row + shiftY) + GUIOptions.boxLength;
-  const nextPosY = relativeSquarePosition(row + shiftY + 1);
-
-  // Check if mouse is between padding
-  if (
-    (relMouseX >= currPosX && relMouseX <= nextPosX) ||
-    (relMouseY >= currPosY && relMouseY <= nextPosY)
-  )
-    return;
-
-  // Return the relevant index
-  return 9 * (8 - row) + (8 - col);
+function mousePressed() {
+  GUIState.mouseDown = true;
 }
 
-function mousePressed() {
-  Game.play(getBoxAtMousePos());
+function mouseReleased() {
+  GUIState.mouseDown = false;
 }
