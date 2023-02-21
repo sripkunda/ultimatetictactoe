@@ -26,11 +26,13 @@ const GUIState = {
   centerX: 0,
   centerY: 0,
   mouseDown: false,
+  lastMouseDown: null,
 };
 
 const GUIElements = {
   resetBtn: null,
   undoBtn: null,
+  shareBtn: null
 };
 
 function hasSetBit(mask, k) {
@@ -66,14 +68,24 @@ function setup() {
   Game.SMALL_WIN_MASKS = generateWinMasks();
   Game.BIG_WIN_MASKS = generateWinMasks(true);
 
-  GUIElements.resetBtn = createButton("🞭");
-  GUIElements.undoBtn = createButton("🡄");
+  GUIElements.resetBtn = createButton(
+    `<i class="fa fa-trash" aria-hidden="true"></i>`
+  );
+  GUIElements.undoBtn = createButton(
+    `<i class="fa fa-undo" aria-hidden="true"></i>`
+  );
+  GUIElements.shareBtn = createButton(
+    `<i class="fa fa-share-alt" aria-hidden="true"></i>`
+  );
 
   GUIElements.resetBtn.mousePressed(() => {
     Game.reset();
   });
   GUIElements.undoBtn.mousePressed(() => {
     Game.undo();
+  });
+  GUIElements.shareBtn.mousePressed(() => {
+    window.prompt("Share this link for multiplayer:", `${window.location.origin + window.location.pathname}?peer=${MultiplayerConnection.id}`);
   });
 }
 
@@ -92,6 +104,12 @@ function draw() {
     (GUIOptions.padding + GUIOptions.boxLength) * 9 + GUIOptions.padding;
 
   // Add buttons
+  GUIElements.shareBtn.position(
+    GUIState.originX + GUIState.end,
+    GUIState.originY + GUIOptions.buttonPaddingY * 2
+  );
+  GUIElements.shareBtn.style("width", `${GUIOptions.buttonWidth}px`);
+
   GUIElements.resetBtn.position(
     GUIState.originX + GUIState.end,
     GUIState.originY + GUIOptions.buttonPaddingY
@@ -206,6 +224,7 @@ function draw() {
 
 function mousePressed() {
   GUIState.mouseDown = true;
+  GUIState.lastMouseDown = Date.now();
 }
 
 function mouseReleased() {

@@ -15,7 +15,18 @@ const Game = {
       this.play(move);
     }
   },
+  join(id) {
+    Game.reset();
+    MultiplayerConnection.color = true;
+    MultiplayerConnection.remoteConnection =
+      MultiplayerConnection.local.connect(id);
+    MultiplayerConnection.remoteId = MultiplayerConnection.remoteConnection.peer;
+    MultiplayerConnection.connected = true;
+    MultiplayerConnection.remoteConnection.on("data", MultiplayerConnection.handleData);
+    return MultiplayerConnection.remoteConnection;
+  },
   reset() {
+    if (MultiplayerConnection.connected) return;
     this.BOARDS = [0n, 0n];
     this.WINNERS = [0n, 0n];
     this.PLAY_SQUARES = this.ALL_SQUARES;
@@ -25,11 +36,20 @@ const Game = {
     this.MOVES = [];
   },
   undo(k = 1) {
+    if (MultiplayerConnection.connected) return;
     let moves = this.MOVES.slice(0, this.MOVES.length - k);
     this.reset();
     this.sequence(...moves);
   },
-  play(i) {
+  play(i, me = true) {
+    // If a multiplayer connection is established and it is not the player's turn, return
+    if (
+      MultiplayerConnection.connected &&
+      MultiplayerConnection.color != this.turn &&
+      me
+    )
+      return;
+
     // If the game is won or the square is invalid, return
     if (this.WINNER != null || this.draw || typeof i !== "number") return;
     const turn = this.turn + 0;
@@ -51,6 +71,11 @@ const Game = {
     // Mark corresponding square
     this.BOARDS[turn] |= BigInt(square);
     this.MOVES.push(i);
+
+    // Make a move on the remote player if a connection exists
+    if (MultiplayerConnection.connected) {
+      MultiplayerConnection.remoteConnection.send(i);
+    }
 
     // Check for small board wins
     for (let mask of this.SMALL_WIN_MASKS) {
@@ -87,6 +112,19 @@ const Game = {
   },
 };
 
+const MultiplayerConnection = {
+  local: null,
+  open: false,
+  id: self.crypto.getRandomValues(new Uint32Array(1))[0],
+  remoteId: null,
+  remoteConnection: null,
+  connected: false,
+  color: false,
+  handleData(data) {
+    if (typeof data === "number") Game.play(data, false);
+  },
+};
+
 function getBigShift(row, col) {
   return BigInt(row * 27 + col * 3);
 }
@@ -101,7 +139,7 @@ function printBoard(board) {
   }
 
   // Formulate output string
-  let out = str
+  let out = str.send
     .substring(str.length - 81)
     .replace(/.{9}/g, "$&\n")
     .replace(/./g, "$& ");
@@ -136,3 +174,22 @@ function generateWinMasks(big = false) {
 
   return masks;
 }
+
+// Check for URL params
+const queryString = window.location.search;
+const urlParams = new URLSearchParams(queryString);
+const peer = urlParams.get("peer");
+
+// Manage multiplayer connections
+MultiplayerConnection.local = new Peer(MultiplayerConnection.id);
+MultiplayerConnection.local.on("open", id => {
+  MultiplayerConnection.open = true;
+  if (peer) Game.join(peer);
+});
+MultiplayerConnection.local.on("connection", conn => {
+  Game.reset();
+  MultiplayerConnection.connected = true;
+  MultiplayerConnection.remoteId = conn.peer;
+  MultiplayerConnection.remoteConnection = conn;
+  conn.on("data", MultiplayerConnection.handleData);
+});
