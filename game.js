@@ -20,10 +20,13 @@ const Game = {
     MultiplayerConnection.color = true;
     MultiplayerConnection.remoteConnection =
       MultiplayerConnection.local.connect(id);
-      MultiplayerConnection.remoteConnection.on("data", MultiplayerConnection.handleData);
-      MultiplayerConnection.remoteConnection.on("open", () => {
-        MultiplayerConnection.connected = true;
-        MultiplayerConnection.remoteId = id;
+    MultiplayerConnection.remoteConnection.on(
+      "data",
+      MultiplayerConnection.handleData
+    );
+    MultiplayerConnection.remoteConnection.on("open", () => {
+      MultiplayerConnection.connected = true;
+      MultiplayerConnection.remoteId = id;
     });
     return MultiplayerConnection.remoteConnection;
   },
@@ -141,7 +144,7 @@ function printBoard(board) {
   }
 
   // Formulate output string
-  let out = str.send
+  let out = str
     .substring(str.length - 81)
     .replace(/.{9}/g, "$&\n")
     .replace(/./g, "$& ");
@@ -184,11 +187,11 @@ const peer = urlParams.get("peer");
 
 // Manage multiplayer connections
 MultiplayerConnection.local = new Peer(MultiplayerConnection.id);
-MultiplayerConnection.local.on("open", id => {
+MultiplayerConnection.local.on("open", (id) => {
   MultiplayerConnection.open = true;
   if (peer) Game.join(peer);
 });
-MultiplayerConnection.local.on("connection", conn => {
+MultiplayerConnection.local.on("connection", (conn) => {
   Game.reset();
   MultiplayerConnection.connected = true;
   MultiplayerConnection.remoteId = conn.peer;
