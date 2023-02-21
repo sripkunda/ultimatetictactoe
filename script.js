@@ -15,6 +15,7 @@ const GUIOptions = {
   gridColorDampening: 0.75,
   buttonWidth: 100,
   buttonPaddingY: 75,
+  messagePaddingY: 50,
 };
 
 const GUIState = {
@@ -27,6 +28,9 @@ const GUIState = {
   centerY: 0,
   mouseDown: false,
   lastMouseDown: null,
+  message: "",
+  messageOverridable: true,
+  messageColor: [255, 255, 255]
 };
 
 const GUIElements = {
@@ -85,7 +89,14 @@ function setup() {
     Game.undo();
   });
   GUIElements.shareBtn.mousePressed(() => {
-    window.prompt("Share this link for multiplayer:", `${window.location.origin + window.location.pathname}?peer=${MultiplayerConnection.id}`);
+    let tmp = document.createElement("INPUT");
+    tmp.setAttribute("type", "text");
+    tmp.setAttribute("display", "none");
+    tmp.setAttribute("value", `${window.location.origin + window.location.pathname}?peer=${MultiplayerConnection.id}`);
+    tmp.select();
+    tmp.setSelectionRange(0, 99999); // For mobile devices
+    navigator.clipboard.writeText(tmp.value);
+    GUIState.message = "Copied share link to clipboard";
   });
 }
 
@@ -122,7 +133,7 @@ function draw() {
   );
   GUIElements.undoBtn.style("width", `${GUIOptions.buttonWidth}px`);
 
-  // Add text
+  // Add title text
   textFont("Georgia");
   textSize(32);
   textAlign(CENTER);
@@ -131,6 +142,20 @@ function draw() {
     "Ultimate Tic Tac Toe",
     GUIState.centerX + GUIState.end / 2,
     GUIState.centerY
+  );
+
+  // Show relevant messages
+  if (GUIState.messageOverridable && MultiplayerConnection.connected) {
+      GUIState.message = "Playing Online"
+      GUIState.messageColor = GUIOptions.playerColors[Number(MultiplayerConnection.color)];
+  }
+
+  fill(GUIState.messageColor);
+  textSize(25);
+  text(
+    GUIState.message,
+    GUIState.originX + GUIState.end / 2,
+    GUIState.originY + GUIState.end + GUIOptions.messagePaddingY
   );
 
   // Redraw board

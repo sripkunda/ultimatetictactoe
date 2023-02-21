@@ -20,9 +20,11 @@ const Game = {
     MultiplayerConnection.color = true;
     MultiplayerConnection.remoteConnection =
       MultiplayerConnection.local.connect(id);
-    MultiplayerConnection.remoteId = MultiplayerConnection.remoteConnection.peer;
-    MultiplayerConnection.connected = true;
-    MultiplayerConnection.remoteConnection.on("data", MultiplayerConnection.handleData);
+      MultiplayerConnection.remoteConnection.on("data", MultiplayerConnection.handleData);
+      MultiplayerConnection.remoteConnection.on("open", () => {
+        MultiplayerConnection.connected = true;
+        MultiplayerConnection.remoteId = id;
+    });
     return MultiplayerConnection.remoteConnection;
   },
   reset() {
